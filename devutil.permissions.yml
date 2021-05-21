@@ -1,0 +1,6 @@
+## Permissions
+---
+
+use devutil:
+  title: Apply Development Utilities
+  restrict access: 'TRUE'

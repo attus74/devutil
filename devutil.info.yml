@@ -1,0 +1,6 @@
+name: DevUtil
+description: 'Developer Utilities'
+type: module
+core_version_requirement: '^8.9 || ^9'
+package: Devel
+version: 1.6.2

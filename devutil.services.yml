@@ -1,0 +1,8 @@
+## Services
+---
+
+services:
+  devutil.commands:
+    class: \Drupal\devutil\Commands\Commands
+    tags:
+      - { name: drush.command }
