@@ -449,7 +449,7 @@ class EntityManager {
       'path' => str_replace('_', '/', $this->_name) . '/{' . $this->_name . '}',
       'defaults' => [
         '_entity_view' => $this->_name,
-        '_title_callback: Drupal\Core\Entity\Controller\EntityController::title',
+        '_title_callback' => '\Drupal\Core\Entity\Controller\EntityController::title',
       ],
       'requirements' => [
         '_entity_access' => $this->_name . '.view',
