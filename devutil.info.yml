@@ -3,4 +3,4 @@ description: 'Developer Utilities'
 type: module
 core_version_requirement: '^8.9 || ^9.1'
 package: Devel
-version: 1.7
+version: 1.8
