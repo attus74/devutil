@@ -9,7 +9,12 @@ drush en devutil
 
 ## New Entity Type
 ```
-drush devu-ent entity_type_name "Entity Type Label" --bundles --module=existing_module_name --path=module_relative_path --name="Your Name"
+// Content Entity Type
+drush devu-nt-ent entity_type_name "Entity Type Label" --bundles --module=existing_module_name --path=module_relative_path --name="Your Name"
+
+/ Configuration Entity Type
+drush devu-nf-ent entity_type_name "Entity Type Label" --module=existing_module_name --path=module_relative_path --name="Your Name"
+
 ```
 Either the name of a module or a path for a new module shall be used. Path shall be relative to Web folder, e.g. "modules/custom".
 Use the bundles argument, if you want your new custom contenty entity type to have bundles. 

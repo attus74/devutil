@@ -418,7 +418,7 @@ class EntityManager {
     }
   }
   
-  private function _createPermissions()
+  protected function _createPermissions()
   {
     $ops = [
       'view'        => 'display',

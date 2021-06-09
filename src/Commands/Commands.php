@@ -4,6 +4,7 @@ namespace Drupal\devutil\Commands;
 
 use Drush\Commands\DrushCommands;
 use Drupal\devutil\EntityManager;
+use Drupal\devutil\ConfigEntityManager;
 use Drupal\devutil\PluginManager;
 
 /**
@@ -19,12 +20,12 @@ class Commands extends DrushCommands {
    * 
    * @param string $machineName
    * @param string $label
-   * @command devutil:entity
-   * @aliases devu-ent
+   * @command devutil:content-entity
+   * @aliases devu-nt-ent
    * @options msg
-   * @usage drush devu-ent entity_type_name "Entity Type Label" --bundles --module=existing_module_name --path=modle_relative_path --name="Your Name"
+   * @usage drush devu-nt-ent entity_type_name "Entity Type Label" --bundles --module=existing_module_name --path=module_relative_path --name="Your Name"
    */
-  public function entity(string $machineName, string $label, array $options = [
+  public function contentEntity(string $machineName, string $label, array $options = [
     'bundles' => FALSE,
     'module' => '',
     'name' => '',
@@ -43,6 +44,28 @@ class Commands extends DrushCommands {
     }
     $manager->create($machineName, $label, $options['bundles'], $moduleName, $options);
     echo "Your code is created\n";
+  }
+  
+  /**
+   * Creates a custom configuration entity type
+   * @param string $machineName
+   * @param string $label
+   * @command devutil:config-entity
+   * @aliases devu-nf-ent
+   * @options msg
+   * @usage drush devu-nf-ent entity_type_name "Entity Type Label" --module=existing_module_name --path=module_relative_path --name="Your Name"
+   */
+  public function configEntity(string $machineName, string $label, array $options = [
+    'module' => '',
+    'name' => '',
+    'path' => '',
+  ])
+  {
+    if (!empty($options['module']) && !empty($options['path'])) {
+      throw new \Exception('Path may only be used if a new module shall be created');
+    }
+    $manager = new ConfigEntityManager();
+    $manager->createCode($machineName, $label, $options);
   }
   
   /**
