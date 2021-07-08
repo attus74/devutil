@@ -1,6 +1,13 @@
 # Drupal 8/9 Development Utilities
 
 A tool for creating Drupal code quick through drush commands.
+
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/attus74/devutil/graphs/commit-activity)
+[![GitHub license](https://img.shields.io/github/license/attus74/devutil.svg)](https://github.com/attus74/devutil/blob/master/LICENSE)
+[![GitHub release](https://img.shields.io/github/release/attus74/devutil.svg)](https://GitHub.com/attus74/devutil/releases/)
+[![GitHub issues](https://img.shields.io/github/issues/attus74/devutil.svg)](https://GitHub.com/attus74/devutil/issues/)
+
+
 Install: 
 ```
 composer require attus/devutil:^1.0 --dev
