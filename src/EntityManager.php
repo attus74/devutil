@@ -493,7 +493,7 @@ class EntityManager {
           ]),
         ],
         'requirements' => [
-          '_entity_create_access' => $this->_name,
+          '_entity_create_access' => $this->_name . ':{' . $this->_getBundleName() . '}',
         ],
         'options' => [
           '_admin_route' => 'TRUE',
