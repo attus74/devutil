@@ -45,7 +45,7 @@ class EntityManagerBase {
     $this->_moduleName = $name;
     if ($this->_moduleHandler->moduleExists($this->_moduleName)) {
       // The module exists. The existing module will be used.
-      $this->_modulePath = drupal_get_path('module', $this->_moduleName);
+      $this->_modulePath = \Drupal::service('extension.list.module')->getPath($this->_moduleName);
     }
     else {
       $path = $this->_getModulePath();

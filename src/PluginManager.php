@@ -234,10 +234,10 @@ class PluginManager {
   private function _createModule()
   {
     if ($this->_moduleHandler->moduleExists($this->_moduleName)) {
-      $this->_moduleDir  = drupal_get_path('module', $this->_moduleName);
+      $this->_moduleDir  = \Drupal::service('extension.list.module')->getPath($this->_moduleName);
     }
     else {
-      $dir = dirname(drupal_get_path('module', 'devutil')) . '/' . $this->_moduleName;
+      $dir = dirname(\Drupal::service('extension.list.module')->getPath('devutil')) . '/' . $this->_moduleName;
       \Drupal::service('file_system')->prepareDirectory($dir, FileSystemInterface::MODIFY_PERMISSIONS | FileSystemInterface::CREATE_DIRECTORY);
       $info = [
         'name' => $this->_nameClass,

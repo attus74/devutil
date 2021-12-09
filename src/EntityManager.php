@@ -390,7 +390,7 @@ class EntityManager {
   {
     if ($this->_moduleHandler->moduleExists($name)) {
       $this->_moduleName = $name;
-      $this->_moduleDir  = drupal_get_path('module', $name);
+      $this->_moduleDir  = \Drupal::service('extension.list.module')->getPath($name);
     }
     else {
       if ($path && !empty($path)) {
@@ -398,7 +398,7 @@ class EntityManager {
         $dir = $path . '/' . $name;
       }
       else {
-        $dir = dirname(drupal_get_path('module', 'devutil')) . '/' . $name;
+        $dir = dirname(\Drupal::service('extension.list.module')->getPath('devutil')) . '/' . $name;
       }
       if (!$label) {
         $label = $name;
@@ -1144,7 +1144,7 @@ class EntityManager {
       '    \'' . $this->_name . '\' => [',
       '      \'render element\' => \'elements\',',
       '      \'template\' => \'' . str_replace('_', '-', $this->_name) . '\',',
-      '      \'path\' => drupal_get_path(\'module\', \'' . $this->_moduleName . '\') . \'/theme\',',
+      '      \'path\' => \Drupal::service(\'extension.list.module\')->getPath(\'' . $this->_moduleName . '\') . \'/theme\',',
       '    ],',
     ];
     $lines = array_merge($lines, $hookLines);
