@@ -410,7 +410,7 @@ class EntityManager {
           '@name' => $label,
         ]),
         'type' => 'module',
-        'core_version_requirement' => '^8.9 || ^9'
+        'core_version_requirement' => '^9.3 || ^10.0',
       ];
       file_put_contents($dir . '/' . $name . '.info.yml', Yaml::encode($info));
       $this->_moduleName = $name;
@@ -649,7 +649,7 @@ class EntityManager {
       'title' => (string)t('Settings'),
     ];
     if ($this->_hasBundle) {
-      $tasks['entity.' . $this->_name . '.edit_form'] = [
+      $tasks['entity.' . $this->_getBundleName() . '.edit_form'] = [
         'route_name' => 'entity.' . $this->_name . '.edit_form',
         'base_route' => 'entity.' . $this->_name . '.edit_form',
         'weight' => -9,

@@ -57,7 +57,7 @@ class EntityManagerBase {
           '@name' => $this->_entityTypeLabel,
         ]),
         'type' => 'module',
-        'core_version_requirement' => '^8.9 || ^9.1'
+        'core_version_requirement' => '^9.3 || ^10.0',
       ];
       $this->_saveYml('info', $info);
     }
