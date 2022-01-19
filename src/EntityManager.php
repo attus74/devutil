@@ -650,8 +650,8 @@ class EntityManager {
     ];
     if ($this->_hasBundle) {
       $tasks['entity.' . $this->_getBundleName() . '.edit_form'] = [
-        'route_name' => 'entity.' . $this->_name . '.edit_form',
-        'base_route' => 'entity.' . $this->_name . '.edit_form',
+        'route_name' => 'entity.' . $this->_getBundleName() . '.edit_form',
+        'base_route' => 'entity.' . $this->_getBundleName() . '.edit_form',
         'weight' => -9,
         'title' => (string)t('Edit'),
       ];
