@@ -13,7 +13,7 @@ use Drupal\Component\Serialization\Yaml;
 /**
  * Entity Manager Base Class
  * 
- * @author Attila Németh, UBG
+ * @author Attila Németh
  * @date 08.06.2021
  */
 class EntityManagerBase {
@@ -212,6 +212,7 @@ class EntityManagerBase {
     $stmts = array($node);
     $code = $this->_prettyPrinter->prettyPrintFile($stmts);
     file_put_contents($filePath . '/' . $name . '.php', $code);
+    echo '- File ' . $filePath . '/' . $name . ".php was created\n";
   }
   
   /**

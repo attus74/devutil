@@ -13,7 +13,7 @@ use Drupal\devutil\EntityManagerBase;
 /**
  * Configuration Entity Manager
  * 
- * @author Attila Németh, UBG
+ * @author Attila Németh
  * @date 08.06.2021
  */
 class ConfigEntityManager extends EntityManagerBase {

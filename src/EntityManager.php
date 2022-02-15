@@ -2,8 +2,12 @@
 
 namespace Drupal\devutil;
 
+use PhpParser\BuilderFactory;
 use Drupal\Core\Serialization\Yaml;
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException;
+use Drupal\Component\Plugin\Exception\PluginNotFoundException;
+use Drupal\devutil\EntityManagerBase;
 
 /**
  * Entity Type Manager
@@ -11,23 +15,17 @@ use Drupal\Core\File\FileSystemInterface;
  * @author Attila Németh
  * 19.02.2019
  */
-class EntityManager {
-  
-  private     $_moduleHandler;
+class EntityManager extends EntityManagerBase {
   
   private     $_name;
   private     $_label;
   private     $_phpName;
   private     $_hasBundle;
+  private     $_hasBundleCasses         = false;
   
-  private     $_moduleName;
   private     $_moduleDir;
   
   private     $_yourName          = 'Your Name';
-  
-  public function __construct() {
-    $this->_moduleHandler = \Drupal::service('module_handler');
-  }
   
   /**
    * Create Code for a new Entity Type
@@ -46,10 +44,13 @@ class EntityManager {
   {
     if (array_key_exists('name', $options) && !empty($options['name'])) {
       $this->_yourName = $options['name'];
+      $this->_author = $this->_yourName;
     }
-    $this->_createModule($module, $label, $options['path']);
+    $this->_createContentModule($module, $label, $options['path']);
     $this->_name      = $name;
     $this->_label     = $label;
+    $this->_entityTypeName = $name;
+    $this->_entityTypeLabel = $label;
     $parts = explode('_', $name);
     $ucParts = [];
     foreach($parts as $part) {
@@ -58,6 +59,9 @@ class EntityManager {
     $this->_phpName = implode($ucParts);
     if ($bundle) {
       $this->_hasBundle = TRUE;
+      if (array_key_exists('bundle-classes', $options) && $options['bundle-classes']) {
+        $this->_hasBundleCasses = true;
+      }
     }
     else {
       $this->_hasBundle = FALSE;
@@ -84,6 +88,9 @@ class EntityManager {
   {
     $this->_createBundleRouting();
     $this->_createBundleClass();
+    if ($this->_hasBundleCasses) {
+      $this->_createEntityBundleClass();
+    }
     $this->_createBundleForm();
   }
   
@@ -96,6 +103,26 @@ class EntityManager {
   private function _getBundleName()
   {
     return $this->_name . '_type';
+  }
+  
+  /**
+   * Create Entity Bundle Interface and the folder for Bundle Classes
+   */
+  private function _createEntityBundleClass(): void
+  {
+    // Interface
+    $factory = new BuilderFactory();
+    $comment = $this->_getDocComment($this->_label . ' Entity Type Bundle Base Interface');
+    $interfaceNode = $factory->namespace('Drupal\\' . $this->_moduleName . '\\Entity')
+          ->setDocComment($comment)
+          ->addStmt($factory->use('Drupal\\' . $this->_moduleName . '\\' . 
+                $this->_getEntityNameClass() . 'Interface'))
+          ->addStmt($factory->interface($this->_getEntityNameClass() . 'BundleBaseInterface')
+                ->extend($this->_getEntityNameClass() . 'Interface'))
+          ->getNode();
+    $this->_savePhp($this->_getEntityNameClass() . 'BundleBaseInterface', $interfaceNode, 'Entity');
+    $bundlePath = $this->_modulePath . '/src/Entity/Bundles';
+    \Drupal::service('file_system')->prepareDirectory($bundlePath, FileSystemInterface::MODIFY_PERMISSIONS | FileSystemInterface::CREATE_DIRECTORY);
   }
   
   /**
@@ -357,18 +384,22 @@ class EntityManager {
         '_permission' => 'administer ' . $this->_name,
       ],
     ];
-    $routing[$this->_getBundleName() . '.add'] = [
-      'path' => 'admin/structure/' . str_replace('_', '/', $this->_name) . '/type/add',
-      'defaults' => [
-        '_entity_form' => $this->_getBundleName() . '.add',
-        '_title' => (string)t('Add @label Type', [
-          '@label' => $this->_label,
-        ]),
-      ],
-      'requirements' => [
-        '_permission' => 'administer ' . $this->_name,
-      ],
-    ];
+    if (!$this->_hasBundleCasses) {
+      // If there are bundle classes, all bundles must be defined in code.
+      // Therefore it is not possible to create new bundles manually.
+      $routing[$this->_getBundleName() . '.add'] = [
+        'path' => 'admin/structure/' . str_replace('_', '/', $this->_name) . '/type/add',
+        'defaults' => [
+          '_entity_form' => $this->_getBundleName() . '.add',
+          '_title' => (string)t('Add @label Type', [
+            '@label' => $this->_label,
+          ]),
+        ],
+        'requirements' => [
+          '_permission' => 'administer ' . $this->_name,
+        ],
+      ];
+    }
     $routing['entity.' . $this->_getBundleName() . '.edit_form'] = [
       'path' => 'admin/structure/' . str_replace('_', '/', $this->_name) . '/type/{' . $this->_getBundleName() . '}/edit',
       'defaults' => [
@@ -386,7 +417,7 @@ class EntityManager {
    * A module will be created if it does not exist
    * @param string $name
    */
-  private function _createModule($name, $label = FALSE, $path = FALSE)
+  private function _createContentModule($name, $label = FALSE, $path = FALSE)
   {
     if ($this->_moduleHandler->moduleExists($name)) {
       $this->_moduleName = $name;
@@ -415,6 +446,7 @@ class EntityManager {
       file_put_contents($dir . '/' . $name . '.info.yml', Yaml::encode($info));
       $this->_moduleName = $name;
       $this->_moduleDir  = $dir;
+      $this->_modulePath = $this->_moduleDir;
     }
   }
   
@@ -601,14 +633,18 @@ class EntityManager {
           'entity.' . $this->_name . '.collection',
         ],
       ];
-      $actions[$this->_getBundleName() . '.add'] = [
-        'route_name' => $this->_getBundleName() . '.add',
-        'title' => (string)t('Create a new type'),
-        'appears_on' => [
-          $this->_name . '.settings',
-          'entity.' . $this->_getBundleName() . '.collection',
-        ],
-      ];
+      if (!$this->_hasBundleCasses) {
+      // If there are bundle classes, all bundles must be defined in code.
+      // Therefore it is not possible to create new bundles manually.
+        $actions[$this->_getBundleName() . '.add'] = [
+          'route_name' => $this->_getBundleName() . '.add',
+          'title' => (string)t('Create a new type'),
+          'appears_on' => [
+            $this->_name . '.settings',
+            'entity.' . $this->_getBundleName() . '.collection',
+          ],
+        ];
+      }
     }
     else {
       $actions['entity.' . $this->_name . '.add_form'] = [
@@ -1158,10 +1194,10 @@ class EntityManager {
     $lines[] = '{';
     $lines[] = '  $variables[\'content\'] = $variables[\'elements\'];';
     $lines[] = '}';
-    function template_preprocess_feed(&$variables): void
-{
-  $variables['content'] = $variables['elements'];
-}
+//    function template_preprocess_feed(&$variables): void
+//{
+//  $variables['content'] = $variables['elements'];
+//}
     file_put_contents($moduleFile, implode("\n", $lines));
   }
   

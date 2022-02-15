@@ -6,11 +6,12 @@ use Drush\Commands\DrushCommands;
 use Drupal\devutil\EntityManager;
 use Drupal\devutil\ConfigEntityManager;
 use Drupal\devutil\PluginManager;
+use Drupal\devutil\EntityBundleManager;
 
 /**
  * Drush Commands
  * 
- * @author Attila Németh, UBG
+ * @author Attila Németh
  * 13.11.2019
  */
 class Commands extends DrushCommands {
@@ -23,10 +24,11 @@ class Commands extends DrushCommands {
    * @command devutil:content-entity
    * @aliases devu-nt-ent
    * @options msg
-   * @usage drush devu-nt-ent entity_type_name "Entity Type Label" --bundles --module=existing_module_name --path=module_relative_path --name="Your Name"
+   * @usage drush devu-nt-ent entity_type_name "Entity Type Label" --bundles --bundle-classes --module=existing_module_name --path=module_relative_path --name="Your Name"
    */
   public function contentEntity(string $machineName, string $label, array $options = [
     'bundles' => FALSE,
+    'bundle-classes' => false,
     'module' => '',
     'name' => '',
     'path' => '',
@@ -34,6 +36,9 @@ class Commands extends DrushCommands {
   {
     if (!empty($options['module']) && !empty($options['path'])) {
       throw new \Exception('Path may only be used if a new module shall be created');
+    }
+    if ($options['bundle-classes'] && !$options['bundles']) {
+      throw new \Exceltipn('Bundle classes may only be created if the entity type has bundles');
     }
     $manager = new EntityManager();
     if ($options['module'] == '') {
@@ -44,6 +49,26 @@ class Commands extends DrushCommands {
     }
     $manager->create($machineName, $label, $options['bundles'], $moduleName, $options);
     echo "Your code is created\n";
+  }
+  
+  /**
+   * Creates a Bundle for a Custom Content Entity Type
+   * This command may only be used if the content entity type exists and can be found
+   *     
+   * @param string $entityTypeId
+   * @param string $bundleId
+   * @param string $bundleLabel
+   * @command devutil:content-entity-bundle
+   * @aliases devu-nt-bundle
+   * @options
+   * @usage drush devu-nt-bundle entity_type_id bundle_id "Bundle Label" --name="Your Name"
+   */
+  public function contentEntityBundle(string $entityTypeId, string $bundleId, string $bundleLabel, array $options = [
+    'name' => null,
+  ]): void
+  {
+    $manager = new EntityBundleManager($entityTypeId);
+    $manager->createBundle($bundleId, $bundleLabel, $options);
   }
   
   /**
