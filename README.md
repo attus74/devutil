@@ -43,6 +43,12 @@ Either the name of a module or a path for a new module shall be used. Path shall
 Use the bundles argument, if you want your new custom contenty entity type to have bundles. In order to create
 Entity Bundle Classes, use both the bundles and the bundle-classes options.
 
+## New class based entity bundle
+This command works only if the entity type already exists and is active (i.e. the module defining it is active).
+```
+drush devu-nt-bundle entity_type_id bundle_id "Bundle Label" --name="Your Name"
+```
+
 ## New Annotation Plugin
 ```
 drush devu-plugin plugin_name --module=existing_module_name --name="Your Name"
