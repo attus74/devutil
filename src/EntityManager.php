@@ -446,8 +446,8 @@ class EntityManager extends EntityManagerBase {
       file_put_contents($dir . '/' . $name . '.info.yml', Yaml::encode($info));
       $this->_moduleName = $name;
       $this->_moduleDir  = $dir;
-      $this->_modulePath = $this->_moduleDir;
     }
+    $this->_modulePath = $this->_moduleDir;
   }
   
   protected function _createPermissions()
