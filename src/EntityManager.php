@@ -1074,7 +1074,7 @@ class EntityManager extends EntityManagerBase {
       '        return AccessResult::allowedIfHasPermission($account, \'delete ' . $this->_name . '\');',
       '      default:',
       '        throw new \Exception(t(\'Unknown Operation: @op\', [',
-      '          \'@op\' => $op,',
+      '          \'@op\' => $operation,',
       '        ]));',
       '    }',
       '  }',
