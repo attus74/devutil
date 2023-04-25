@@ -7,6 +7,7 @@ use PhpParser\Error;
 use PhpParser\ParserFactory;
 use PhpParser\Node;
 use PhpParser\Node\Stmt\Function_;
+use PhpParser\Builder\FunctionLike;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitorAbstract;
 use PhpParser\PrettyPrinter;
@@ -15,6 +16,11 @@ use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Return_;
+use PhpParser\Node\Expr\Array_;
+use PhpParser\NodeDumper;
+use PhpParser\Node\Expr\ArrayItem;
+use PhpParser\PrettyPrinter\Standard;
+use PhpParser\Comment\Doc;
 use Drupal\Component\Serialization\Yaml;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\devutil\EntityManagerBase;
@@ -171,49 +177,35 @@ class EntityBundleManager extends EntityManagerBase {
   public function _addBundleInfo(): void
   {
     $parser = (new ParserFactory)->create(ParserFactory::PREFER_PHP7);
+    $code = file_get_contents($this->_moduleFilePath);
     try {
-      $hookName = $this->_moduleName . '_entity_bundle_info';
-      $code = file_get_contents($this->_moduleFilePath);
-      if (function_exists($hookName)) {
-        $bundleInfo = $hookName();
-      }
-      else {
-        $bundleInfo = [];
-        $code .= "\n\n/**\n * Implements hook_entity_bundle_info()\n */\nfunction $hookName() {}";
-      }
       $ast = $parser->parse($code);
-      $bundleInfo[$this->_entityTypeName][$this->_bundleId] = [
-        'label' => $this->_bundleLabel,
-        'class' => 'Drupal\\' . $this->_moduleName . '\Entity\Bundles\\' . $this->_className,
-      ];
-      $traverser = new NodeTraverser();
-      $traverser->addVisitor(new ModuleFileVisitor($hookName, $bundleInfo));
-      $traversedAst = $traverser->traverse($ast);
-      $prettyPrinter = new PrettyPrinter\Standard;
-      $modifiedCode = $prettyPrinter->prettyPrintFile($traversedAst);
-      $replacementLines = [
-        '[',
-      ];
-      foreach($bundleInfo as $e => $b) {
-        $replacementLines[] = '      \'' . $e . '\' => [';
-        foreach($b as $bi => $bf) {
-          $replacementLines[] = '        \'' . $bi . '\' => [';
-          $replacementLines[] = '          \'label\' => \'' . $bf['label'] . '\',';
-          $replacementLines[] = '          \'class\' => \'' . $bf['class'] . '\',';
-          $replacementLines[] = '        ],';
+      $hookName = $this->_moduleName . '_entity_bundle_info';
+      $hasHook = false;
+      foreach($ast as $element) {
+        if ((string)$element->name === $hookName) {
+          $hasHook = true;
         }
-        $replacementLines[] = '      ],';
       }
-      $replacementLines[] = '    ]';
-      $modifiedCode = str_replace('\'%BUNDLES%\'', implode("\n", $replacementLines), $modifiedCode);
-      file_put_contents($this->_moduleFilePath, $modifiedCode);
-      echo '- File ' . $this->_moduleFilePath . " was updated\n";
+      if (!$hasHook) {
+        $hook = new Function_($hookName);
+        $hookDoc = "/**\n * Implements hook_entity_bundle_info()\n * @date " . \Drupal::service('date.formatter')->format(time(), 'short') . "\n */";
+        $hook->setDocComment(new Doc($hookDoc));
+        $ast[] = $hook;
+      }
+      $nodeTraverser = new NodeTraverser;
+      $nodeTraverser->addVisitor(new BundleInfoNodeVisitor($hookName, $this->_entityTypeName, $this->_bundleId, 
+            $this->_bundleLabel, 'Drupal\\' . $this->_moduleName . '\Entity\Bundles\\' . $this->_className));
+      $traversedNodes = $nodeTraverser->traverse($ast);
+      $standardPrinter = new Standard();
+      $newFileContents = $standardPrinter->prettyPrintFile($traversedNodes);
+      file_put_contents($this->_moduleFilePath, $newFileContents);
     } catch (Error $error) {
       echo 'Module File may not be updated: ' . $error->getMessage() . "\n";
     }
   }
   
-  public function _createConfig(): void 
+  private function _createConfig(): void 
   {
     $configDir = $this->_modulePath . '/config/install/';
     \Drupal::service('file_system')
@@ -275,25 +267,73 @@ class EntityBundleManager extends EntityManagerBase {
   
 }
 
-class ModuleFileVisitor extends NodeVisitorAbstract {
+class BundleInfoNodeVisitor extends NodeVisitorAbstract {
   
   private     $_hookName;
-  private     $_bundleInfo;
-  
-  public function __construct(string $hookName, array $bundleInfo) {
+  private     $_entityTypeId;
+  private     $_bundleId;
+  private     $_bundleLabel;
+  private     $_className;
+
+  public function __construct(string $hookName, string $entityTypeId, string $bundleId, string $bundleLabel, string $className) {
     $this->_hookName = $hookName;
-    $this->_bundleInfo = $bundleInfo;
+    $this->_entityTypeId = $entityTypeId;
+    $this->_bundleId = $bundleId;
+    $this->_bundleLabel = $bundleLabel;
+    $this->_className = $className;
   }
   
-  public function enterNode(Node $node)  {
-    if ($node instanceof Function_ && $node->name->name === $this->_hookName) {
-      $node->returnType = new Node\Identifier('array');
-      $var = new Variable('bundles');
-      $value = new String_('%BUNDLES%');
-      $expression = new Assign($var, $value);
-      $node->stmts[] = new Expression($expression);
-      $node->stmts[] = new Return_($var);
+  public function leaveNode(Node $node)
+  {
+    if ($node instanceof Function_ && $this->_isHook($node)) {
+      $dumper = new NodeDumper();
+      $hookStmts = $node->getStmts();
+      $expr = null;
+      foreach($hookStmts as $stmt) {
+        if ($stmt instanceof Expression) {
+          if ($stmt->expr->var->name === 'bundles') {
+            $expr = $stmt;
+          }
+        }
+      }
+      if (is_null($expr)) {
+        $assignExpr = new Assign(new Variable('bundles'), new Array_([
+          new ArrayItem(new Array_(), new String_($this->_entityTypeId)),
+        ]));
+        $expr = new Expression($assignExpr);
+        $node->stmts[] = $expr;
+      }
+      $assign = null;
+      foreach($expr->expr->expr->items as $item) {
+        if ($item->key->value === $this->_entityTypeId) {
+          $assign = $item;
+        }
+      }
+      if (is_null($assign)) {
+        throw new \Exception('NO ASSIGN');
+      }
+      $bundleItem = null;
+      foreach($assign->value->items as $item) {
+        if ($item->key->value === $this->_bundleId) {
+          $bundleItem = $item;
+        }
+      }
+      if (is_null($bundleItem)) {
+        $bundleItem = new ArrayItem(new Array_(), new String_($this->_bundleId));
+        $assign->value->items[] = $bundleItem;
+      }
+      $bundleItem->value = new Array_([
+        new ArrayItem(new String_($this->_bundleLabel), new String_('label')),
+        new ArrayItem(new String_($this->_className), new String_('class')),
+      ]);
+      return $node;
     }
   }
   
+  private function _isHook(Function_ $node): bool
+  {
+    $name = (string)$node->name;
+    return $name === $this->_hookName;
+  }
+    
 }

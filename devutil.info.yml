@@ -3,4 +3,3 @@ description: 'Developer Utilities'
 type: module
 core_version_requirement: ^9.5 || ^10.0
 package: Devel
-version: 1.11
