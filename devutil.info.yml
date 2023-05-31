@@ -1,5 +1,5 @@
 name: DevUtil
 description: 'Developer Utilities'
 type: module
-core_version_requirement: ^9.5 || ^10.0
+core_version_requirement: ^10.0 || ^11.0
 package: Devel
