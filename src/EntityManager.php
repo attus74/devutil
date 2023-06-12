@@ -441,7 +441,7 @@ class EntityManager extends EntityManagerBase {
           '@name' => $label,
         ]),
         'type' => 'module',
-        'core_version_requirement' => '^9.3 || ^10.0',
+        'core_version_requirement' => $this->_getVersionConstraint(),
       ];
       file_put_contents($dir . '/' . $name . '.info.yml', Yaml::encode($info));
       $this->_moduleName = $name;

@@ -57,7 +57,7 @@ class EntityManagerBase {
           '@name' => $this->_entityTypeLabel,
         ]),
         'type' => 'module',
-        'core_version_requirement' => '^9.3 || ^10.0',
+        'core_version_requirement' => $this->_getVersionConstraint(),
       ];
       $this->_saveYml('info', $info);
     }
@@ -320,6 +320,19 @@ CODE;
     foreach($ast as $command) {
       $element->addStmt($command);
     }
+  }
+  
+  /**
+   * Drupal-Kern-Constraint für die Info-Datei
+   * @return string
+   * @date 12.06.2023
+   */
+  protected function _getVersionConstraint(): string
+  {
+    [$major, $minor, $patch] = explode('.', \Drupal::VERSION);
+    $constraintCurrent = '^' . $major . '.' . $minor;
+    $constraintNext = '^' . ($major + 1) . '.0';
+    return $constraintCurrent . ' || ' . $constraintNext;
   }
   
 }
