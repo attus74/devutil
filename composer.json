@@ -14,7 +14,7 @@
     },
     "license": "GPL-3.0-or-later",
     "require": {
-        "drupal/core": "^10.0 || ^11.0",
+        "drupal/core": "^10.1 || ^11.0",
         "nikic/php-parser": "^4.0"
     },
     "extra": {

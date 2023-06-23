@@ -204,6 +204,8 @@ class ConfigEntityManager extends EntityManagerBase {
     $parser = (new ParserFactory)->create(ParserFactory::PREFER_PHP7);
     $factory = new BuilderFactory();
     
+    ///// Entity Form
+    
     $createCode = <<<'CODE'
 <?php
 
@@ -246,7 +248,7 @@ CODE;
     $formStatement = $factory->method('form')
                               ->makePublic()
                               ->setDocComment('/** @{inheritdoc} */')
-                              ->addParam($factory->param('form')->setType('array')->makeByRef())
+                              ->addParam($factory->param('form')->setType('array'))
                               ->addParam($factory->param('form_state')->setType('FormStateInterface'));
     foreach($formAst as $command) {
       $formStatement->addStmt($command);
@@ -266,7 +268,8 @@ CODE;
       ]));
     }
 
-    $form_state->setRedirect("entity.' . $this->_entityTypeName . '.collection");';
+    $form_state->setRedirect("entity.' . $this->_entityTypeName . '.collection");
+    return $status;';
     $saveCode = <<<CODE
 <?php
             
@@ -284,6 +287,7 @@ CODE;
     }
     
     $existCode = '$entity = $this->entityTypeManager->getStorage(\'' . $this->_entityTypeName . '\')->getQuery()
+      ->accessCheck(false)
       ->condition("id", $id)
       ->execute();
     return (bool) $entity;';
@@ -328,6 +332,17 @@ CODE;
                           ->getNode();
     $this->_savePhp($this->_getEntityNameClass() . 'Form', $formNode, 'Form');
     
+    ///// Entity Delete Form
+    
+    $deleteCreateCode = <<<'CODE'
+<?php
+
+return new static(
+  $container->get('messenger'),
+);
+CODE;
+    $deleteCreateAst = $parser->parse($deleteCreateCode);
+    
     $getQuestionCode = <<<'CODE'
 <?php
 
@@ -356,7 +371,7 @@ CODE;
     $submitFormCode = <<<'CODE'
 <?php
 $this->entity->delete();
-\Drupal::messenger()->addMessage($this->t('%label has been deleted.', array('%label' => $this->entity->label())));
+$this->_messenger->addMessage($this->t('%label has been deleted.', array('%label' => $this->entity->label())));
 $form_state->setRedirectUrl($this->getCancelUrl());
 CODE;
     $submitFormAst = $parser->parse($submitFormCode);
@@ -371,13 +386,28 @@ CODE;
     
     $deleteFormClass = $factory->class($this->_getEntityNameClass() . 'DeleteForm')
                                 ->extend('EntityConfirmFormBase')
+                                ->addStmt($factory->property('_messenger')
+                                      ->makePrivate())
+                                ->addStmt($factory->method('__construct')
+                                      ->makePublic()
+                                      ->addParam($factory->param('messenger')
+                                                            ->setType('MessengerInterface '))
+                                      ->addStmt(new Assign(new Variable('this->_messenger'), new Variable('messenger'))))
+                                ->addStmt($factory->method('create')
+                                      ->makePublic()
+                                      ->makeStatic()
+                                      ->addParam($factory->param('container')
+                                                          ->setType('ContainerInterface'))
+                                      ->addStmt(current($deleteCreateAst)))
                                 ->addStmt($getQuestionStatement)
                                 ->addStmt($cancelUrlStatement)
                                 ->addStmt($submitFormStatement);
     $deleteFormNode = $factory->namespace('Drupal\\' . $this->_moduleName . '\\Form')
+                              ->addStmt($factory->use('Symfony\Component\DependencyInjection\ContainerInterface'))
                               ->addStmt($factory->use('Drupal\Core\Entity\EntityConfirmFormBase'))
                               ->addStmt($factory->use('Drupal\Core\Url'))
                               ->addStmt($factory->use('Drupal\Core\Form\FormStateInterface'))
+                              ->addStmt($factory->use('Drupal\Core\Messenger\MessengerInterface'))
                               ->setDocComment($this->_getDocComment($this->_entityTypeLabel . ' Delete Form'))
                               ->addStmt($deleteFormClass)
                               ->getNode();

@@ -47,3 +47,4 @@ drush devu-nt-bundle entity_type_id bundle_id "Bundle Label" --name="Your Name"
 ```
 drush devu-plugin plugin_name --module=existing_module_name --name="Your Name"
 ```
+You're free to use this module without any restriction but without any warranty.
