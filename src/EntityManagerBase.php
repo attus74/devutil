@@ -2,13 +2,19 @@
 
 namespace Drupal\devutil;
 
-use PhpParser\PrettyPrinter;
 use PhpParser\Node as PhpParserNode;
 use PhpParser\ParserFactory;
 use PhpParser\BuilderFactory;
-use PhpParser\Builder;
+use PhpParser\Builder\Declaration;
+use PhpParser\PrettyPrinter\Standard as StandardPrinter;
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\Extension\ModuleExtensionList;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Component\Serialization\Yaml;
+use Drupal\devutil\EntityManagerInterface;
+use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
 
 /**
  * Entity Manager Base Class
@@ -16,11 +22,8 @@ use Drupal\Component\Serialization\Yaml;
  * @author Attila Németh
  * @date 08.06.2021
  */
-class EntityManagerBase {
+abstract class EntityManagerBase implements EntityManagerInterface {
   
-  // Drupal Module Handler
-  protected       $_moduleHandler;
-
   // Machine readable name and human readeable label of the new entity type
   protected       $_entityTypeName;
   protected       $_entityTypeLabel;
@@ -35,9 +38,29 @@ class EntityManagerBase {
   // PHP Parser Pretty Printer
   protected       $_prettyPrinter;
   
-  public function __construct() {
-    $this->_moduleHandler = \Drupal::service('module_handler');
-    $this->_prettyPrinter = new PrettyPrinter\Standard();
+  // Drupal Services
+  protected       $_logger;
+  protected       $_fileSystem;
+  protected       $_moduleHandler;
+  protected       $_extensionListModule;
+  protected       $_entityTypeManager;
+  protected       $_entityBundleInfo;
+
+  public function __construct(LoggerChannelFactoryInterface $loggerFactory,
+        FileSystemInterface $fileSystem,
+        ModuleHandlerInterface $moduleHandler,
+        ModuleExtensionList $extensionListModule,
+        EntityTypeManagerInterface $entityTypeManager,
+        EntityTypeBundleInfoInterface $entityBundleInfo) {
+    $this->_logger = $loggerFactory->get('DevUtil');
+    $this->_fileSystem = $fileSystem;
+    $this->_moduleHandler = $moduleHandler;
+    $this->_extensionListModule = $extensionListModule;
+    $this->_entityTypeManager = $entityTypeManager;
+    $this->_entityBundleInfo = $entityBundleInfo;
+    $this->_prettyPrinter = new StandardPrinter([
+      'shortArraySyntax' => true,
+    ]);
   }
     
   protected function _createModule(string $name): void
@@ -45,11 +68,11 @@ class EntityManagerBase {
     $this->_moduleName = $name;
     if ($this->_moduleHandler->moduleExists($this->_moduleName)) {
       // The module exists. The existing module will be used.
-      $this->_modulePath = \Drupal::service('extension.list.module')->getPath($this->_moduleName);
+      $this->_modulePath = $this->_extensionListModule->getPath($this->_moduleName);
     }
     else {
       $path = $this->_getModulePath();
-      \Drupal::service('file_system')->prepareDirectory($path, FileSystemInterface::MODIFY_PERMISSIONS | FileSystemInterface::CREATE_DIRECTORY);
+      $this->_fileSystem->prepareDirectory($path, FileSystemInterface::MODIFY_PERMISSIONS | FileSystemInterface::CREATE_DIRECTORY);
       $this->_modulePath = $path;
       $info = [
         'name' => $this->_entityTypeLabel,
@@ -57,7 +80,7 @@ class EntityManagerBase {
           '@name' => $this->_entityTypeLabel,
         ]),
         'type' => 'module',
-        'core_version_requirement' => $this->_getVersionConstraint(),
+        'core_version_requirement' => '^10.1',
       ];
       $this->_saveYml('info', $info);
     }
@@ -208,8 +231,8 @@ class EntityManagerBase {
     if (!is_null($path)) {
       $filePath .= '/' . $path;
     }
-    \Drupal::service('file_system')->prepareDirectory($filePath, FileSystemInterface::MODIFY_PERMISSIONS | FileSystemInterface::CREATE_DIRECTORY);
-    $stmts = array($node);
+    $this->_fileSystem->prepareDirectory($filePath, FileSystemInterface::MODIFY_PERMISSIONS | FileSystemInterface::CREATE_DIRECTORY);
+    $stmts = [$node];
     $code = $this->_prettyPrinter->prettyPrintFile($stmts);
     file_put_contents($filePath . '/' . $name . '.php', $code);
     echo '- File ' . $filePath . '/' . $name . ".php was created\n";
@@ -240,7 +263,7 @@ class EntityManagerBase {
       ' * ' . $title,
       ' *',
     ];
-    if (!is_null($this->_author)) {
+    if (!is_null($this->_author) && !empty($this->_author)) {
       $lines[] = ' * @author ' . $this->_author;
     }
     $lines[] = ' * @date ' . date('d.m.Y');
@@ -302,7 +325,7 @@ CODE;
       return $ast;
     }
     catch(\Exception $ex) {
-      \Drupal::logger('Development Utilities')->error($ex->getMessage());
+      $this->_logger->error($ex->getMessage());
       echo $code;
       exit(1);
     }
@@ -310,29 +333,16 @@ CODE;
   
   /**
    * Add AST Elements to class or method
-   * @param Builder $element
+   * @param Declaration $element
    *  The PHP Parser Class or Method
    * @param array $ast
    *  The AST elements
    */
-  protected function _addAst(Builder $element, array $ast): void
+  protected function _addAst(Declaration $element, array $ast): void
   {
     foreach($ast as $command) {
       $element->addStmt($command);
     }
-  }
-  
-  /**
-   * Drupal-Kern-Constraint für die Info-Datei
-   * @return string
-   * @date 12.06.2023
-   */
-  protected function _getVersionConstraint(): string
-  {
-    [$major, $minor, $patch] = explode('.', \Drupal::VERSION);
-    $constraintCurrent = '^' . $major . '.' . $minor;
-    $constraintNext = '^' . ($major + 1) . '.0';
-    return $constraintCurrent . ' || ' . $constraintNext;
   }
   
 }

@@ -5,8 +5,6 @@ namespace Drupal\devutil;
 use PhpParser\BuilderFactory;
 use Drupal\Core\Serialization\Yaml;
 use Drupal\Core\File\FileSystemInterface;
-use Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException;
-use Drupal\Component\Plugin\Exception\PluginNotFoundException;
 use Drupal\devutil\EntityManagerBase;
 
 /**
@@ -14,6 +12,8 @@ use Drupal\devutil\EntityManagerBase;
  * 
  * @author Attila Németh
  * 19.02.2019
+ * 
+ * @deprecated since 1.14 and will be removed in 1.15
  */
 class EntityManager extends EntityManagerBase {
   
@@ -25,7 +25,7 @@ class EntityManager extends EntityManagerBase {
   
   private     $_moduleDir;
   
-  private     $_yourName          = 'Your Name';
+  private     $_yourName                = 'Your Name';
   
   /**
    * Create Code for a new Entity Type
@@ -1030,7 +1030,7 @@ class EntityManager extends EntityManagerBase {
       '   * {@inheritdoc}',
       '   */',
       '  public function submitForm(array &$form, \Drupal\Core\Form\FormStateInterface $form_state) {',
-      '    return parent::submitForm($form, $form_state);',
+      '    // Here comes your Submit code',
       '  }',
       '',
       '}',
@@ -1053,7 +1053,7 @@ class EntityManager extends EntityManagerBase {
       'use Drupal\Core\Session\AccountInterface;',
       '',
       '/**',
-      ' * Zugriffskontrolle',
+      ' * Access Control Handler',
       ' *',
       ' * @author ' . $this->_yourName,
       ' * @date ' . date('d.m.Y'),

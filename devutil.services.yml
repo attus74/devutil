@@ -6,3 +6,41 @@ services:
     class: \Drupal\devutil\Commands\Commands
     tags:
       - { name: drush.command }
+    arguments:
+      - '@devutil.manager.plugin'
+      - '@devutil.manager.config'
+      - '@devutil.manager.content'
+      - '@devutil.manager.bundle'
+  devutil.manager.plugin:
+    class: \Drupal\devutil\PluginManager
+    arguments:
+      - '@extension.list.module'
+      - '@file_system'
+      - '@module_handler'
+  devutil.manager.config:
+    class: \Drupal\devutil\ConfigEntityManager
+    arguments:
+      - '@logger.factory'
+      - '@file_system'
+      - '@module_handler'
+      - '@extension.list.module'
+      - '@entity_type.manager'
+      - '@entity_type.bundle.info'
+  devutil.manager.content:
+    class: \Drupal\devutil\ContentEntityManager
+    arguments:
+      - '@logger.factory'
+      - '@file_system'
+      - '@module_handler'
+      - '@extension.list.module'
+      - '@entity_type.manager'
+      - '@entity_type.bundle.info'
+  devutil.manager.bundle:
+    class: \Drupal\devutil\EntityBundleManager
+    arguments:
+      - '@logger.factory'
+      - '@file_system'
+      - '@module_handler'
+      - '@extension.list.module'
+      - '@entity_type.manager'
+      - '@entity_type.bundle.info'

@@ -4,9 +4,10 @@ namespace Drupal\devutil\Commands;
 
 use Drush\Commands\DrushCommands;
 use Drupal\devutil\EntityManager;
-use Drupal\devutil\ConfigEntityManager;
-use Drupal\devutil\PluginManager;
+use Drupal\devutil\EntityManagerInterface;
 use Drupal\devutil\EntityBundleManager;
+use Drupal\devutil\PluginManagerInterface;
+use Drupal\devutil\EntityBundleManagerInterface;
 
 /**
  * Drush Commands
@@ -15,6 +16,21 @@ use Drupal\devutil\EntityBundleManager;
  * 13.11.2019
  */
 class Commands extends DrushCommands {
+  
+  private     $_pluginManager;
+  private     $_configEntitymanager;
+  private     $_contentEntityManager;
+  private     $_entityBundleManager;
+  
+  public function __construct(PluginManagerInterface $pluginManager,
+        EntityManagerInterface $configEntityManager,
+        EntityManagerInterface $contentEntityManager,
+        EntityBundleManagerInterface $entityBundleManager) {
+    $this->_pluginManager = $pluginManager;
+    $this->_configEntitymanager = $configEntityManager;
+    $this->_contentEntityManager = $contentEntityManager;
+    $this->_entityBundleManager = $entityBundleManager;
+  }
   
   /**
    * Creates a custom Content Entity Type
@@ -38,16 +54,9 @@ class Commands extends DrushCommands {
       throw new \Exception('Path may only be used if a new module shall be created');
     }
     if ($options['bundle-classes'] && !$options['bundles']) {
-      throw new \Exceltipn('Bundle classes may only be created if the entity type has bundles');
+      throw new \Exception('Bundle classes may only be created if the entity type has bundles');
     }
-    $manager = new EntityManager();
-    if ($options['module'] == '') {
-      $moduleName = $machineName;
-    }
-    else {
-      $moduleName = $options['module'];
-    }
-    $manager->create($machineName, $label, $options['bundles'], $moduleName, $options);
+    $this->_contentEntityManager->createCode($machineName, $label, $options);
     echo "Your code is created\n";
   }
   
@@ -67,8 +76,9 @@ class Commands extends DrushCommands {
     'name' => null,
   ]): void
   {
-    $manager = new EntityBundleManager($entityTypeId);
-    $manager->createBundle($bundleId, $bundleLabel, $options);
+    $manager = $this->_entityBundleManager;
+    $manager->setEntityType($entityTypeId);
+    $manager->createCode($bundleId, $bundleLabel, $options);
   }
   
   /**
@@ -89,8 +99,7 @@ class Commands extends DrushCommands {
     if (!empty($options['module']) && !empty($options['path'])) {
       throw new \Exception('Path may only be used if a new module shall be created');
     }
-    $manager = new ConfigEntityManager();
-    $manager->createCode($machineName, $label, $options);
+    $this->_configEntitymanager->createCode($machineName, $label, $options);
   }
   
   /**
@@ -106,11 +115,10 @@ class Commands extends DrushCommands {
     'name' => '',
   ]): void
   {
-    $manager = new PluginManager();
     if ($options['module'] == '') {
       $options['module'] = $name;
     }
-    $manager->create($name, $options['module'], $options['name']);
+    $this->_pluginManager->create($name, $options['module'], $options['name']);
   }
   
 }

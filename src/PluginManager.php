@@ -4,6 +4,9 @@ namespace Drupal\devutil;
 
 use Drupal\Core\Serialization\Yaml;
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\Extension\ModuleExtensionList;
+use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\devutil\PluginManagerInterface;
 
 /**
  * Plugin Manager
@@ -11,10 +14,7 @@ use Drupal\Core\File\FileSystemInterface;
  * @author Attila Németh
  * 05.03.2020
  */
-class PluginManager {
-  
-  // Module Handler
-  private     $_moduleHandler;
+class PluginManager implements PluginManagerInterface {
   
   // Plugin Underscore Name, e.g. plugin_name
   private     $_nameUnderscore;
@@ -34,8 +34,17 @@ class PluginManager {
   // Your Name, e.g. John Doe
   private     $_yourName;
   
-  public function __construct() {
-    $this->_moduleHandler = \Drupal::service('module_handler');
+  // Drupal Services
+  private     $_extensionListModule;
+  private     $_fileSystem;
+  private     $_moduleHandler;
+
+  public function __construct(ModuleExtensionList $extensionListModule,
+        FileSystemInterface $fileSystem,
+        ModuleHandlerInterface $moduleHandler) {
+    $this->_extensionListModule = $extensionListModule;
+    $this->_fileSystem = $fileSystem;
+    $this->_moduleHandler = $moduleHandler;
   }
   
   public function create(string $name, string $module = NULL, $yourName = NULL): void
@@ -64,7 +73,7 @@ class PluginManager {
   private function _createAnnotation(): void
   {
     $dir = $this->_moduleDir . '/src/Annotation';
-    \Drupal::service('file_system')->prepareDirectory($dir, FileSystemInterface::MODIFY_PERMISSIONS | FileSystemInterface::CREATE_DIRECTORY);
+    $this->_fileSystem->prepareDirectory($dir, FileSystemInterface::MODIFY_PERMISSIONS | FileSystemInterface::CREATE_DIRECTORY);
     $fileName = $dir . '/' . $this->_nameClass . '.php';
     if (file_exists($fileName)) {
       unlink($fileName);
@@ -178,7 +187,7 @@ class PluginManager {
   private function _createPluginBase(): void
   {
     $dir = $this->_moduleDir . '/src';
-    \Drupal::service('file_system')->prepareDirectory($dir, FileSystemInterface::MODIFY_PERMISSIONS | FileSystemInterface::CREATE_DIRECTORY);
+    $this->_fileSystem->prepareDirectory($dir, FileSystemInterface::MODIFY_PERMISSIONS | FileSystemInterface::CREATE_DIRECTORY);
     $fileName = $this->_moduleDir . '/src/' . $this->_nameClass . 'Base.php';
     if (file_exists($fileName)) {
       unlink($fileName);
@@ -234,19 +243,18 @@ class PluginManager {
   private function _createModule()
   {
     if ($this->_moduleHandler->moduleExists($this->_moduleName)) {
-      $this->_moduleDir  = \Drupal::service('extension.list.module')->getPath($this->_moduleName);
+      $this->_moduleDir  = $this->_extensionListModule->getPath($this->_moduleName);
     }
     else {
-      $dir = dirname(\Drupal::service('extension.list.module')->getPath('devutil')) . '/' . $this->_moduleName;
-      \Drupal::service('file_system')->prepareDirectory($dir, FileSystemInterface::MODIFY_PERMISSIONS | FileSystemInterface::CREATE_DIRECTORY);
+      $dir = dirname($this->_extensionListModule->getPath('devutil')) . '/' . $this->_moduleName;
+      $this->_fileSystem->prepareDirectory($dir, FileSystemInterface::MODIFY_PERMISSIONS | FileSystemInterface::CREATE_DIRECTORY);
       $info = [
         'name' => $this->_nameClass,
         'description' => (string)t('Plugin @name', [
           '@name' => $this->_nameClass,
         ]),
         'type' => 'module',
-        'core' => '8.x',
-        'core_version_requirement' => '^8 || ^9',
+        'core_version_requirement' => '^10.1',
       ];
       file_put_contents($dir . '/' . $this->_moduleName . '.info.yml', Yaml::encode($info));
       $this->_moduleDir  = $dir;
@@ -271,9 +279,11 @@ class PluginManager {
   }
   
   /**
-   * Save Info to YML File
-   * @param type $fileName
-   * @param type $content
+   * Create or Update an YML file
+   * @param string $fileName
+   *  File Name withouth module name and extension, e.g. 'permissions'
+   * @param array $content
+   *  File Content
    */
   private function _setYmlContent(string $fileName, array $content): void
   {

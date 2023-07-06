@@ -178,7 +178,7 @@ class ConfigEntityManager extends EntityManagerBase {
   protected function _createSchema(): void
   {
     $schemaDir = $this->_modulePath . '/config/schema';
-    \Drupal::service('file_system')->prepareDirectory($schemaDir, FileSystemInterface::MODIFY_PERMISSIONS | FileSystemInterface::CREATE_DIRECTORY);
+    $this->_fileSystem->prepareDirectory($schemaDir, FileSystemInterface::MODIFY_PERMISSIONS | FileSystemInterface::CREATE_DIRECTORY);
     $schema = [
       $this->_entityTypeName . '.' . $this->_entityTypeName => [
         'type' => 'config_entity',

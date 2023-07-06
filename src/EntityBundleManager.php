@@ -24,6 +24,12 @@ use PhpParser\Comment\Doc;
 use Drupal\Component\Serialization\Yaml;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\devutil\EntityManagerBase;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\Extension\ModuleExtensionList;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
+use Drupal\devutil\EntityBundleManagerInterface;
 
 /**
  * Entity Bundle Manager
@@ -31,7 +37,7 @@ use Drupal\devutil\EntityManagerBase;
  * @author Attila Németh
  * @date 15.02.2022
  */
-class EntityBundleManager extends EntityManagerBase {
+class EntityBundleManager extends EntityManagerBase implements EntityBundleManagerInterface {
   
   // Bundle Arguments from CLI
   private           $_bundleId;
@@ -44,13 +50,28 @@ class EntityBundleManager extends EntityManagerBase {
   private           $_interfaceName;
   private           $_moduleFilePath;
   
-  // PHP Builder Factory
   private           $_factory;
-
-  public function __construct(string $entityTypeId) {
-    $this->_entityTypeName = $entityTypeId;
+  
+  public function __construct(LoggerChannelFactoryInterface $loggerFactory, FileSystemInterface $fileSystem, ModuleHandlerInterface $moduleHandler, ModuleExtensionList $extensionListModule, EntityTypeManagerInterface $entityTypeManager, EntityTypeBundleInfoInterface $entityBundleInfo) {
+    parent::__construct($loggerFactory, $fileSystem, $moduleHandler, $extensionListModule, $entityTypeManager, $entityBundleInfo);
     $this->_factory = new BuilderFactory();
-    parent::__construct();
+  }
+  
+  /**
+   * Set Entity Type
+   * @param string $entityTypeId
+   */
+  public function setEntityType(string $entityTypeId): void
+  {
+    $this->_entityTypeName = $entityTypeId;
+  }
+  
+  /**
+   * {@inheritDoc}
+   */
+  public function createCode(string $name, string $label, array $options): void {
+    /** @phpstan-ignore-next-line */
+    $this->createBundle($name, $label, $options);
   }
   
   /**
@@ -62,6 +83,8 @@ class EntityBundleManager extends EntityManagerBase {
    * @param array $options
    *  Code Options: 
    *          - name                    @name-Attribute in Code
+   * 
+   * @deprecated since version 1.14 and will be removed in version 1.15
    */
   public function createBundle(string $bundleId, string $bundleLabel, array $options): void
   {
@@ -84,7 +107,7 @@ class EntityBundleManager extends EntityManagerBase {
    */
   private function _checkArguments(): void
   {
-    $this->_bundleInfo = \Drupal::service('entity_type.bundle.info')->getBundleInfo($this->_entityTypeName);
+    $this->_bundleInfo = $this->_entityBundleInfo->getBundleInfo($this->_entityTypeName);
     if (count($this->_bundleInfo) == 1 && current(array_keys($this->_bundleInfo)) == $this->_entityTypeName) {
       throw new \Exception('This entity type has no bundles');
     }
@@ -100,7 +123,7 @@ class EntityBundleManager extends EntityManagerBase {
       }
     }
     $matches = [];
-    $this->_entityTypeDefinition = \Drupal::entityTypeManager()->getDefinition($this->_entityTypeName);
+    $this->_entityTypeDefinition = $this->_entityTypeManager->getDefinition($this->_entityTypeName);
     if (preg_match('/^Drupal\\\(.*?)\\\/', $this->_entityTypeDefinition->getClass(), $matches)) {
       $this->_moduleName = $matches[1];
     }
@@ -108,7 +131,7 @@ class EntityBundleManager extends EntityManagerBase {
       throw new \Exception('Definition of this Content Entity Type has an error: wrong namespace');
     }
     $this->_entityTypeLabel = (string)$this->_entityTypeDefinition->getLabel();
-    $this->_modulePath = \Drupal::service('extension.list.module')->getPath($this->_moduleName);
+    $this->_modulePath = $this->_extensionListModule->getPath($this->_moduleName);
   }
   
   /**
@@ -189,7 +212,7 @@ class EntityBundleManager extends EntityManagerBase {
       }
       if (!$hasHook) {
         $hook = new Function_($hookName);
-        $hookDoc = "/**\n * Implements hook_entity_bundle_info()\n * @date " . \Drupal::service('date.formatter')->format(time(), 'short') . "\n */";
+        $hookDoc = $this->_getDocComment('Implements hook_entity_bundle_info()()');
         $hook->setDocComment(new Doc($hookDoc));
         $ast[] = $hook;
       }
@@ -208,7 +231,7 @@ class EntityBundleManager extends EntityManagerBase {
   private function _createConfig(): void 
   {
     $configDir = $this->_modulePath . '/config/install/';
-    \Drupal::service('file_system')
+    $this->_fileSystem
           ->prepareDirectory($configDir, FileSystemInterface::MODIFY_PERMISSIONS | FileSystemInterface::CREATE_DIRECTORY);
     $configPath = $configDir . '/' . $this->_moduleName . '.' . 
           $this->_entityTypeDefinition->getBundleEntityType() . '.' . $this->_bundleId . '.yml';
@@ -223,7 +246,7 @@ class EntityBundleManager extends EntityManagerBase {
     $config['label'] = $this->_bundleLabel;
     file_put_contents($configPath, Yaml::encode($config));
     $schemaDir = $this->_modulePath . '/config/schema/';
-    \Drupal::service('file_system')
+    $this->_fileSystem
           ->prepareDirectory($schemaDir, FileSystemInterface::MODIFY_PERMISSIONS | FileSystemInterface::CREATE_DIRECTORY);
     $schemaPath = $schemaDir . '/' . $this->_moduleName . '.schema.yml';
     if (is_file($schemaPath)) {
@@ -291,6 +314,7 @@ class BundleInfoNodeVisitor extends NodeVisitorAbstract {
       $expr = null;
       foreach($hookStmts as $stmt) {
         if ($stmt instanceof Expression) {
+          /** @phpstan-ignore-next-line */
           if ($stmt->expr->var->name === 'bundles') {
             $expr = $stmt;
           }
@@ -304,6 +328,7 @@ class BundleInfoNodeVisitor extends NodeVisitorAbstract {
         $node->stmts[] = $expr;
       }
       $assign = null;
+      /** @phpstan-ignore-next-line */
       foreach($expr->expr->expr->items as $item) {
         if ($item->key->value === $this->_entityTypeId) {
           $assign = $item;
@@ -327,6 +352,9 @@ class BundleInfoNodeVisitor extends NodeVisitorAbstract {
         new ArrayItem(new String_($this->_className), new String_('class')),
       ]);
       return $node;
+    }
+    else {
+      return null;
     }
   }
   
