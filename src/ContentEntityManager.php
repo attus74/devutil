@@ -51,27 +51,6 @@ class ContentEntityManager extends EntityManagerBase {
    */
   public function createCode(string $name, string $label, array $options): void {
     
-    //// Test
-    
-//    $rawCode = '
-//      $a = 5;
-//      $b = 6;
-//    ';
-//    $code = <<<CODE
-//    <?php
-//          
-//    $rawCode
-//    
-//    CODE;
-//     
-//    $factory = new ParserFactory(); 
-//    $parser = $factory->create(ParserFactory::PREFER_PHP7);
-//    $ast = $parser->parse($code);
-//    var_dump($ast);
-//    die();
-    
-    //// Test
-    
     $this->_entityTypeName = $name;
     $this->_entityTypeLabel = $label;
     if (array_key_exists('name', $options)) {
@@ -1209,7 +1188,7 @@ class ContentEntityManager extends EntityManagerBase {
           new Assign(new ArrayDimFetch(new Variable('variables'), new String_('content')), 
                 new ArrayDimFetch(new Variable('variables'), new String_('elements')))
         ),
-        new Return_(new Variable('hooks'));
+        new Return_(new Variable('hooks'))
       ];
       $ast[] = $preprocess;
     }
