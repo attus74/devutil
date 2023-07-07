@@ -1208,7 +1208,8 @@ class ContentEntityManager extends EntityManagerBase {
         new Expression(
           new Assign(new ArrayDimFetch(new Variable('variables'), new String_('content')), 
                 new ArrayDimFetch(new Variable('variables'), new String_('elements')))
-        )
+        ),
+        new Return_(new Variable('hooks'));
       ];
       $ast[] = $preprocess;
     }
